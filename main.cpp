@@ -3,12 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cstring>
+#include <vector>
 #include "rapidjson/include/rapidjson/document.h"
 
 #define ARGS 4
 
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata);
-void req_hand(std::string& firstName, std::string& lastName, std::string* url);
+std::string req_hand(const std::string& firstName, const std::string& lastName, std::string* url);
+void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer);
 
 int main(int argc, char** argv) {
     if (argc != ARGS) {
@@ -19,9 +21,35 @@ int main(int argc, char** argv) {
     std::string firstName = argv[1];
     std::string lastName = argv[2];
     size_t depth = std::stol(argv[3]);
+
     std::string url = "http://hollywood-graph-crawler.bridgesuncc.org/neighbors/";
-    req_hand(firstName, lastName, &url);
+    std::string out = req_hand(firstName, lastName, &url);
+    std::vector<std::string> res_buffer;
+    parse_json(out, &res_buffer);
+    for (int i = 0; i < res_buffer.size(); ++i) {
+        std::cout << res_buffer[i] << std::endl;
+    }
     return 0;
+}
+
+void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer) {
+    rapidjson::Document doc;
+    doc.Parse(res_bod.c_str());
+    bool res = doc.HasMember("neighbors");
+    if (!res) {
+        std::cout << "Cannot locate neighbors key" << std::endl;
+        exit(1);
+    }
+    res = doc.HasMember("node");
+    if (!res) {
+        std::cout << "Cannot locate node key" << std::endl;
+        exit(1);
+    }
+    res_buffer->push_back(doc["node"].GetString());
+    const rapidjson::Value& neighbors = doc["neighbors"];
+    for (size_t i = 0; i < neighbors.Size(); ++i) {
+        res_buffer->push_back(neighbors[i].GetString());
+    }
 }
 
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
@@ -32,7 +60,7 @@ size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     return nmemb;
 }
 
-void req_hand(std::string& firstName, std::string& lastName, std::string* url) {
+std::string req_hand(const std::string& firstName, const std::string& lastName, std::string* url) {
     CURL *curl = curl_easy_init();
     if (!curl) {
         std::cerr << "Failed to make handle" << std::endl;
@@ -49,6 +77,6 @@ void req_hand(std::string& firstName, std::string& lastName, std::string* url) {
         std::cerr << "error: " << curl_easy_strerror(response) << std::endl;
         exit(1);
     }
-    std::cout << out << std::endl;
     curl_easy_cleanup(curl);
+    return out;
 }
