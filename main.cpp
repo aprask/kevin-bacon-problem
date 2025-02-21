@@ -2,6 +2,7 @@
 #include <curl/curl.h>
 #include <stdlib.h>
 #include <string.h>
+#include "rapidjson/include/rapidjson/document.h"
 
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata);
 
@@ -18,7 +19,7 @@ int main(int argc, char** argv) {
     }
     CURLcode response;
     
-    curl_easy_setopt(curl, CURLOPT_URL, "https://example.com/");
+    curl_easy_setopt(curl, CURLOPT_URL, "http://hollywood-graph-crawler.bridgesuncc.org/neighbors/Tom%20Hanks");
     std::string out;
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) &out);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
