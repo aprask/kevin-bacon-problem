@@ -4,14 +4,15 @@
 #include <string.h>
 #include <cstring>
 #include <vector>
+#include <deque>
 #include "rapidjson/include/rapidjson/document.h"
 
 #define ARGS 4
 
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata);
-std::string req_hand(std::string* url, std::string& name);
-void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer);
-void traverse_graph(const std::string& name, const size_t& depth, std::vector<std::string>& urls, std::string& url);
+std::string req_hand(std::string url, std::string& name);
+void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer, std::deque<std::string>* queue);
+void traverse_graph(std::string& base_url, std::string* initial_name, size_t& depth, std::vector<std::string>* visited);
 
 int main(int argc, char** argv) {
     if (argc != ARGS) {
@@ -20,52 +21,83 @@ int main(int argc, char** argv) {
     }
     std::string name = argv[1];
     name = name + " " + argv[2];
+    std::vector<std::string> names;
+    names.push_back(name);
     size_t depth = std::stol(argv[3]);
-    std::string url = "http://hollywood-graph-crawler.bridgesuncc.org/neighbors/";
-    // std::vector<std::string> urls;
-    // urls.push_back(url);
-    // traverse_graph(name, depth, urls, url);
-    std::string o = req_hand(&url, name);
-    std::cout << o << std::endl;
+    std::string base_url = "http://hollywood-graph-crawler.bridgesuncc.org/neighbors/";
+    std::vector<std::string> visited;
+    traverse_graph(base_url, &name, depth, &visited);
+    // for (int i = 0; i < visited.size(); ++i) {
+    //     std::cout << visited[i] << std::endl;
+    // }
     return 0;
 }
 
-void traverse_graph(const std::string& name, const size_t& depth, std::vector<std::string>& urls, std::string& url) {
-    int i = 0;
-    std::vector<std::string> res_buffer;
-    std::string out;
-    int k;
-    int j;
-    while (i < depth) {
-        std::cout << "made it" << std::endl;
-        for (k = 0; k < urls.size(); ++k) {
-            // out = req_hand(urls[k]);
-            parse_json(out, &res_buffer);
+void traverse_graph(std::string& base_url, std::string* initial_name, size_t& depth, std::vector<std::string>* visited) {
+    std::deque<std::string> queue;
+
+    visited->push_back(*initial_name);
+    queue.push_back(*initial_name);
+
+    size_t depth_c = 0;
+
+    while (depth_c < depth) {
+
+        std::cout << "LEVEL: " << depth_c << std::endl;
+
+        int current_queue_size = queue.size();
+        while (current_queue_size) {
+
+            std::string current_node = queue.front();
+
+            queue.pop_front();
+
+            std::cout << "Popped Node: " << current_node << std::endl; 
+
+            std::string out = req_hand(base_url, current_node);
+
+            // std::cout << out << std::endl;
+
+            parse_json(out, visited, &queue);
+
+            current_queue_size--;
         }
-        for (k = 0; k < res_buffer.size(); ++k) {
-        }
-        res_buffer.clear();
-        i++;
+
+        depth_c++;
     }
 }
 
-void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer) {
+void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer, std::deque<std::string>* queue) {
     rapidjson::Document doc;
     doc.Parse(res_bod.c_str());
     bool res = doc.HasMember("neighbors");
     if (!res) {
-        std::cout << "Cannot locate neighbors key" << std::endl;
+        std::cerr << "Cannot locate neighbors key" << std::endl;
         exit(1);
     }
     res = doc.HasMember("node");
     if (!res) {
-        std::cout << "Cannot locate node key" << std::endl;
+        std::cerr << "Cannot locate node key" << std::endl;
         exit(1);
     }
     res_buffer->push_back(doc["node"].GetString());
     const rapidjson::Value& neighbors = doc["neighbors"];
+    bool skip_idx = false;
     for (size_t i = 0; i < neighbors.Size(); ++i) {
+        for (size_t j = 0; j < neighbors.Size(); ++j) {
+            if ((*res_buffer)[j] == std::string(neighbors[i].GetString())) {
+                // std::cout << "Already visited: " << (*res_buffer)[j] << std::endl;
+                skip_idx = true;
+                break;
+            }
+        }
+        if (skip_idx) {
+            skip_idx = false;
+            continue;
+        }
+        queue->push_back(neighbors[i].GetString());
         res_buffer->push_back(neighbors[i].GetString());
+        // std::cout << "ADDED: " << neighbors[i].GetString() << std::endl;
     }
 }
 
@@ -77,7 +109,7 @@ size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata) {
     return nmemb;
 }
 
-std::string req_hand(std::string* url, std::string& name) {
+std::string req_hand(std::string url, std::string& name) {
     CURL *curl = curl_easy_init();
     if (!curl) {
         std::cerr << "Failed to make handle" << std::endl;
@@ -89,8 +121,9 @@ std::string req_hand(std::string* url, std::string& name) {
         std::cerr << "Cannot encode url" << std::endl;
         exit(1);
     }
-    *url = *url + encoded_name;
-    curl_easy_setopt(curl, CURLOPT_URL, url->c_str());
+    url = url + encoded_name;
+    // std::cout << "URL: " << url << std::endl;
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     std::string out;
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) &out);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
