@@ -1,5 +1,5 @@
 bacon: main.o
-	g++ -o bacon main.o -lcurl
+	g++ -g -o bacon main.o -lcurl
 
 main.o: main.cpp
 	g++ -c main.cpp
