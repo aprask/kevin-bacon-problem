@@ -7,9 +7,10 @@
 #include <deque>
 #include <fstream>
 #include <chrono>
+#include <algorithm>
 #include "rapidjson/include/rapidjson/document.h"
 
-#define ARGS 4
+#define ARGS 3
 
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata);
 std::string req_hand(std::string url, std::string& name);
@@ -22,10 +23,10 @@ int main(int argc, char** argv) {
         return 1;
     }
     std::string name = argv[1];
-    name = name + " " + argv[2];
+    std::replace(name.begin(), name.end(), '_', ' ');
     std::vector<std::string> names;
     names.push_back(name);
-    size_t depth = std::stol(argv[3]);
+    size_t depth = std::stol(argv[2]);
     std::string base_url = "http://hollywood-graph-crawler.bridgesuncc.org/neighbors/";
     std::vector<std::string> visited;
     traverse_graph(base_url, &name, depth, &visited);
