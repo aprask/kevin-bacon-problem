@@ -5,6 +5,8 @@
 #include <cstring>
 #include <vector>
 #include <deque>
+#include <fstream>
+#include <chrono>
 #include "rapidjson/include/rapidjson/document.h"
 
 #define ARGS 4
@@ -27,15 +29,16 @@ int main(int argc, char** argv) {
     std::string base_url = "http://hollywood-graph-crawler.bridgesuncc.org/neighbors/";
     std::vector<std::string> visited;
     traverse_graph(base_url, &name, depth, &visited);
-    // for (int i = 0; i < visited.size(); ++i) {
-    //     std::cout << visited[i] << std::endl;
-    // }
+    for (int i = 0; i < visited.size(); ++i) {
+        std::cout << visited[i] << std::endl;
+    }
     return 0;
 }
 
 void traverse_graph(std::string& base_url, std::string* initial_name, size_t& depth, std::vector<std::string>* visited) {
     std::deque<std::string> queue;
-
+    std::ofstream output_file("output.txt", std::ios::trunc);
+    auto global_time = std::chrono::high_resolution_clock::now();
     visited->push_back(*initial_name);
     queue.push_back(*initial_name);
 
@@ -43,7 +46,7 @@ void traverse_graph(std::string& base_url, std::string* initial_name, size_t& de
 
     while (depth_c < depth) {
 
-        std::cout << "LEVEL: " << depth_c << std::endl;
+        output_file << "LEVEL: " << depth_c << std::endl;
 
         int current_queue_size = queue.size();
         while (current_queue_size) {
@@ -52,11 +55,9 @@ void traverse_graph(std::string& base_url, std::string* initial_name, size_t& de
 
             queue.pop_front();
 
-            std::cout << "Popped Node: " << current_node << std::endl; 
+            output_file << current_node << std::endl; 
 
             std::string out = req_hand(base_url, current_node);
-
-            // std::cout << out << std::endl;
 
             parse_json(out, visited, &queue);
 
@@ -65,6 +66,9 @@ void traverse_graph(std::string& base_url, std::string* initial_name, size_t& de
 
         depth_c++;
     }
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - global_time).count();
+    output_file << "Time: " << duration << std::endl;
+    output_file.close();    
 }
 
 void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer, std::deque<std::string>* queue) {
@@ -86,7 +90,6 @@ void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer
     for (size_t i = 0; i < neighbors.Size(); ++i) {
         for (size_t j = 0; j < neighbors.Size(); ++j) {
             if ((*res_buffer)[j] == std::string(neighbors[i].GetString())) {
-                // std::cout << "Already visited: " << (*res_buffer)[j] << std::endl;
                 skip_idx = true;
                 break;
             }
@@ -97,7 +100,6 @@ void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer
         }
         queue->push_back(neighbors[i].GetString());
         res_buffer->push_back(neighbors[i].GetString());
-        // std::cout << "ADDED: " << neighbors[i].GetString() << std::endl;
     }
 }
 
@@ -122,7 +124,6 @@ std::string req_hand(std::string url, std::string& name) {
         exit(1);
     }
     url = url + encoded_name;
-    // std::cout << "URL: " << url << std::endl;
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     std::string out;
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) &out);
@@ -135,14 +136,3 @@ std::string req_hand(std::string url, std::string& name) {
     curl_easy_cleanup(curl);
     return out;
 }
-
-
-/*
-Structure
-l1: HEAD
-l2: HEAD's Movies
-l3: Movie's actors
-l4: Actor's movies
-l5: Movie's actors
-l6: Actor's movies
-*/
