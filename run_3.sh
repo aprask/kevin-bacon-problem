@@ -5,4 +5,4 @@ if [ $? -ne 0 ]; then
     echo "Build failed. Exiting."
     exit 1
 fi 
-./bacon Morgan_Freeman 6
+./bacon Morgan_Freeman 4

@@ -1,0 +1,4 @@
+rm *.o bacon
+g++ -c main.cpp
+g++ -g -o bacon main.o -lcurl
+slurmstepd: error: *** JOB 7464 ON gal-c2 CANCELLED AT 2025-02-24T04:21:51 DUE TO TIME LIMIT ***
