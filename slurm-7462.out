@@ -1,4 +1,0 @@
-rm *.o bacon
-g++ -c main.cpp
-g++ -g -o bacon main.o -lcurl
-error: Timeout was reached

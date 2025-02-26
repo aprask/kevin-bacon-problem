@@ -8,14 +8,15 @@
 #include <fstream>
 #include <chrono>
 #include <algorithm>
+#include <unordered_set>
 #include "rapidjson/include/rapidjson/document.h"
 
 #define ARGS 3
 
 size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata);
 std::string req_hand(std::string url, std::string& name);
-void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer, std::deque<std::string>* queue);
-void traverse_graph(std::string& base_url, std::string* initial_name, size_t& depth, std::vector<std::string>* visited);
+void parse_json(const std::string& res_bod, std::unordered_set<std::string>* visited, std::deque<std::string>* queue);
+void traverse_graph(std::string& base_url, std::string* initial_name, size_t& depth, std::unordered_set<std::string>* visited);
 
 int main(int argc, char** argv) {
     if (argc != ARGS) {
@@ -28,19 +29,20 @@ int main(int argc, char** argv) {
     names.push_back(name);
     size_t depth = std::stol(argv[2]);
     std::string base_url = "http://hollywood-graph-crawler.bridgesuncc.org/neighbors/";
-    std::vector<std::string> visited;
+    // std::vector<std::string> visited;
+    std::unordered_set<std::string> visited;
     traverse_graph(base_url, &name, depth, &visited);
-    for (int i = 0; i < visited.size(); ++i) {
-        std::cout << visited[i] << std::endl;
-    }
+    // for (int i = 0; i < visited.size(); ++i) {
+    //     std::cout << visited[i] << std::endl;
+    // }
     return 0;
 }
 
-void traverse_graph(std::string& base_url, std::string* initial_name, size_t& depth, std::vector<std::string>* visited) {
+void traverse_graph(std::string& base_url, std::string* initial_name, size_t& depth, std::unordered_set<std::string>* visited) {
     std::deque<std::string> queue;
     std::ofstream output_file("output.txt", std::ios::trunc);
     auto global_time = std::chrono::high_resolution_clock::now();
-    visited->push_back(*initial_name);
+    visited->insert(*initial_name);
     queue.push_back(*initial_name);
 
     size_t depth_c = 0;
@@ -72,7 +74,7 @@ void traverse_graph(std::string& base_url, std::string* initial_name, size_t& de
     output_file.close();    
 }
 
-void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer, std::deque<std::string>* queue) {
+void parse_json(const std::string& res_bod, std::unordered_set<std::string>* visited, std::deque<std::string>* queue) {
     rapidjson::Document doc;
     doc.Parse(res_bod.c_str());
     bool res = doc.HasMember("neighbors");
@@ -85,22 +87,12 @@ void parse_json(const std::string& res_bod, std::vector<std::string>* res_buffer
         std::cerr << "Cannot locate node key" << std::endl;
         exit(1);
     }
-    res_buffer->push_back(doc["node"].GetString());
+    visited->insert(doc["node"].GetString());
     const rapidjson::Value& neighbors = doc["neighbors"];
-    bool skip_idx = false;
     for (size_t i = 0; i < neighbors.Size(); ++i) {
-        for (size_t j = 0; j < neighbors.Size(); ++j) {
-            if ((*res_buffer)[j] == std::string(neighbors[i].GetString())) {
-                skip_idx = true;
-                break;
-            }
-        }
-        if (skip_idx) {
-            skip_idx = false;
-            continue;
-        }
+        if (visited->find(neighbors[i].GetString()) != visited->end()) continue;
+        visited->insert(neighbors[i].GetString());
         queue->push_back(neighbors[i].GetString());
-        res_buffer->push_back(neighbors[i].GetString());
     }
 }
 
